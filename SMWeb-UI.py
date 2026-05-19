@@ -5,7 +5,7 @@ import pandas as pd
 # ==========================================
 # 系統與版面設定
 # ==========================================
-st.set_page_config(page_title="阿素手把手 - 全球股票過濾器", layout="wide")
+st.set_page_config(page_title="股票MACD追踪器 -核心程式提供:阿素", layout="wide")
 
 # ==========================================
 # 初始化 Session State
@@ -39,9 +39,9 @@ def check_asu_strategy(stock_id):
     
     # 智慧判斷股票代號邏輯
     if stock_id.isdigit():
-        ticker = f"{stock_id}.TW" # 純數字預設為台股上市
+        ticker = f"{stock_id}.TW" 
     else:
-        ticker = stock_id.upper() # 包含英文字母或符號，自動轉大寫使用
+        ticker = stock_id.upper() 
     
     try:
         # 取得股票基本資料與名稱
@@ -67,17 +67,19 @@ def check_asu_strategy(stock_id):
         df_m = calculate_macd(df_m)
         df_w = calculate_macd(df_w)
         
-        m_hist_now = df_m['Hist'].iloc[-1]
-        m_hist_prev = df_m['Hist'].iloc[-2]
-        m_dif_now = df_m['DIF'].iloc[-1]
+        # 🟢 【修正重點】加入 .dropna()，確保只抓取「有真實數字」的最後一筆資料
+        m_hist_now = df_m['Hist'].dropna().iloc[-1]
+        m_hist_prev = df_m['Hist'].dropna().iloc[-2]
+        m_dif_now = df_m['DIF'].dropna().iloc[-1]
         
-        w_hist_now = df_w['Hist'].iloc[-1]
-        w_hist_prev = df_w['Hist'].iloc[-2]
+        w_hist_now = df_w['Hist'].dropna().iloc[-1]
+        w_hist_prev = df_w['Hist'].dropna().iloc[-2]
         
         df_d['60MA'] = df_d['Close'].rolling(window=60).mean()
         
-        d_close = float(df_d['Close'].iloc[-1])
-        d_60ma = float(df_d['60MA'].iloc[-1])
+        # 🟢 【修正重點】日線與季線同樣加入 .dropna() 防呆
+        d_close = float(df_d['Close'].dropna().iloc[-1])
+        d_60ma = float(df_d['60MA'].dropna().iloc[-1])
         
         condition_1 = (m_hist_now > 0) and (m_hist_prev <= 0) and (m_dif_now > 0)
         condition_2 = (m_hist_now > 0) and (m_hist_prev > 0) and (w_hist_now > 0) and (w_hist_prev <= 0)
@@ -101,7 +103,7 @@ def check_asu_strategy(stock_id):
                     st.write("- **原因**：雖然月週皆紅，但並非「剛翻紅」的起漲點，追高有風險。")
 
     except Exception as e:
-         st.error(f"[{ticker}] 分析失敗: 可能查無此代號或網路連線問題。")
+         st.error(f"[{ticker}] 分析失敗: 可能查無此代號或網路連線問題 ({e})。")
 
 # ==========================================
 # 左側側邊欄 (UI 介面已全面升級全球版說明)
