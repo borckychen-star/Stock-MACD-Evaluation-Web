@@ -5,7 +5,7 @@ import pandas as pd
 # ==========================================
 # 系統與版面設定
 # ==========================================
-st.set_page_config(page_title="股票MACD評估", layout="wide")
+st.set_page_config(page_title="阿素手把手 - 全球股票過濾器", layout="wide")
 
 # ==========================================
 # 初始化 Session State
@@ -35,16 +35,20 @@ def calculate_macd(df):
     return df
 
 def check_asu_strategy(stock_id):
-    ticker = f"{stock_id}.TW"
+    stock_id = stock_id.strip()
+    
+    # 智慧判斷股票代號邏輯
+    if stock_id.isdigit():
+        ticker = f"{stock_id}.TW" # 純數字預設為台股上市
+    else:
+        ticker = stock_id.upper() # 包含英文字母或符號，自動轉大寫使用
     
     try:
-        # 🟢 【新增】透過 yfinance 取得股票基本資料與名稱
+        # 取得股票基本資料與名稱
         ticker_data = yf.Ticker(ticker)
-        # 嘗試取得名稱，如果抓不到就給空字串
         stock_name = ticker_data.info.get('shortName', '') 
         
-        # 組合顯示標題：如果有抓到名稱，就顯示「2330 (TAIWAN SEMICONDUCTOR)」，沒有就只顯示「2330」
-        display_title = f"{stock_id} ({stock_name})" if stock_name else f"{stock_id}"
+        display_title = f"{ticker} ({stock_name})" if stock_name else f"{ticker}"
 
         # 抓取日、週、月線資料
         df_m = yf.download(ticker, period="2y", interval="1mo", progress=False)
@@ -52,7 +56,7 @@ def check_asu_strategy(stock_id):
         df_d = yf.download(ticker, period="6mo", interval="1d", progress=False)
         
         if df_m.empty or df_w.empty or df_d.empty:
-            st.error(f"[{stock_id}] 資料讀取失敗，請確認代號是否正確。")
+            st.error(f"[{ticker}] 資料讀取失敗，請確認代號格式是否正確。")
             return
             
         if isinstance(df_m.columns, pd.MultiIndex):
@@ -78,7 +82,6 @@ def check_asu_strategy(stock_id):
         condition_1 = (m_hist_now > 0) and (m_hist_prev <= 0) and (m_dif_now > 0)
         condition_2 = (m_hist_now > 0) and (m_hist_prev > 0) and (w_hist_now > 0) and (w_hist_prev <= 0)
         
-        # 🟢 【修改】將原本的 stock_id 替換為包含名稱的 display_title
         with st.expander(f"📊 標的：{display_title} (點擊展開/收合)", expanded=True):
             col1, col2 = st.columns(2)
             col1.metric("目前股價", f"{d_close:.2f}")
@@ -98,20 +101,31 @@ def check_asu_strategy(stock_id):
                     st.write("- **原因**：雖然月週皆紅，但並非「剛翻紅」的起漲點，追高有風險。")
 
     except Exception as e:
-         st.error(f"[{stock_id}] 分析失敗: {e}")
+         st.error(f"[{ticker}] 分析失敗: 可能查無此代號或網路連線問題。")
 
 # ==========================================
-# 左側側邊欄 (UI 介面)
+# 左側側邊欄 (UI 介面已全面升級全球版說明)
 # ==========================================
 with st.sidebar:
     st.header("⚙️ 監控名單設定")
-    st.markdown("請在下方輸入您想分析的股票代號：")
     
-    stock1 = st.text_input("股票 1", key="s1", placeholder="例如：00878")
-    stock2 = st.text_input("股票 2", key="s2", placeholder="例如：00935")
-    stock3 = st.text_input("股票 3", key="s3", placeholder="例如：2330")
-    stock4 = st.text_input("股票 4", key="s4", placeholder="例如：2382")
-    stock5 = st.text_input("股票 5", key="s5", placeholder="例如：1519")
+    st.markdown("""
+    **支援全球市場代號：**
+    * 🇹🇼 **台股**：直接輸入數字 (如 `2330`)
+    * 🇺🇸 **美股**：直接輸入代號 (如 `NVDA`)
+    * 🇯🇵 **日股**：數字後加 `.T` (如 `7203.T`)
+    * 🇬🇧 **英股**：代號後加 `.L` (如 `AZN.L`)
+    * 🇩🇪 **德股**：代號後加 `.DE` (如 `IFX.DE`)
+    * 🇫🇷 **法股**：代號後加 `.PA` (如 `SU.PA`)
+    """)
+    st.divider()
+    
+    # 全面翻新 Placeholder 提示，涵蓋各國主要科技與指標個股
+    stock1 = st.text_input("股票 1", key="s1", placeholder="台股範例：00935")
+    stock2 = st.text_input("股票 2", key="s2", placeholder="美股範例：NVDA")
+    stock3 = st.text_input("股票 3", key="s3", placeholder="日股範例：7203.T")
+    stock4 = st.text_input("股票 4", key="s4", placeholder="德股半導體：IFX.DE")
+    stock5 = st.text_input("股票 5", key="s5", placeholder="法股自動化：SU.PA")
     
     st.divider() 
     
@@ -134,7 +148,7 @@ with st.sidebar:
 # ==========================================
 # 右側主畫面 (分析結果區)
 # ==========================================
-st.title("📈 阿素手把手 - 股票自動篩選器")
+st.title("📈 阿素手把手 - 全球股票自動篩選器")
 
 if start_analyze:
     st.markdown("---")
@@ -145,11 +159,11 @@ if start_analyze:
     if len(watch_list) == 0:
         st.warning("⚠️ 請在左側至少輸入一檔股票代號。")
     else:
-        with st.spinner('資料連線計算中，請稍候...'):
+        with st.spinner('全球資料連線計算中，請稍候...'):
             for stock in watch_list:
                 check_asu_strategy(stock)
         
         st.divider()
         st.success("結論：沒有好型態就不要買！")
 else:
-    st.info("👈 請在左側側邊欄輸入股票代號，並點擊「輸入完成」按鈕開始分析。")
+    st.info("👈 請在左側側邊欄輸入全球股票代號，並點擊「輸入完成」按鈕開始分析。")
